@@ -11,3 +11,7 @@ You need modify this program to adapt you situation.
 
 There are the deploy and the cpp.
 
+
+The Compile command:
+
+g++ -o fcntest main.cpp `pkg-config --cflags --libs opencv`  -I /***path to you caffe***/include  -I/***path to you caffe***/build/src -L /***path to you caffe***/build/lib -I /usr/local/cuda/include  -L /usr/local/cuda/lib64 -lcaffe -lglog  -lboost_system  -lcudnn
