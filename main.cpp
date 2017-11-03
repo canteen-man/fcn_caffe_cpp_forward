@@ -5,6 +5,7 @@
 #include <caffe/caffe.hpp>
 #include <string>
 #include <vector>
+#include <algorithm>
 using namespace cv;
 using namespace std;
 using namespace caffe;
@@ -43,7 +44,7 @@ void Detector::WrapInputLayer(std::vector<cv::Mat>* input_channels) {
     input_channels->push_back(channel);
     input_data += width * height;
   }
-}//用来输入图像进入网络，各个成员函数均调用，固定格式
+}//用来输入图像进入网络
 void Detector::caffePreprocess(const cv::Mat& img,
                             std::vector<cv::Mat>* input_channels)
 {
@@ -79,7 +80,6 @@ Mat fcnpreprocess(const Mat& crop)
 }
 /**********************************************************/
 /**************************Predict**************************/
-/**********************对fcn语义分割安全带进行前向测试**************************************/
  Mat Detector::Predict(const cv::Mat& img) {
     caffe::Blob<float>* input_layer = net_->input_blobs()[0];//拿输入层数据
     input_layer->Reshape(1, 3,256, 256);//reshape层blob格式
@@ -96,20 +96,48 @@ Mat fcnpreprocess(const Mat& crop)
     float* results = output_layer->mutable_cpu_data();
     Mat src =Mat::zeros(cv::Size(256,256),CV_32FC1);
    //caffe::Datum;
+    int totalnum=net_->num_outputs();
+     ofstream   ofresult( "result.txt ",ios::app);
     for(int j=0;j<256;j++){
        float* data =src.ptr<float>(j);
           for(int i=0;i<256;i++){
-             if(results[i+j*256+256*256]>results[i+j*256])
+              float sum[totalnum];
+              for(int num=0;num<=totalnum;num++ )
               {
-                 data[i]=255;
-               }
+                  float pixel =results[i+j*256+num*256*256];
+                  sum[num]=pixel;
+              }
+              float summax=0;
+              int maxflag=0;
+
+          for(int max=0;max<=totalnum;max++)
+          {
+              if(sum[max]>summax)
+            {
+                  summax=sum[max];
+                 maxflag=max;
+            }
+          }
+              ofresult<<sum[totalnum-1]<<"          "<<sum[totalnum]<<"               "<<maxflag<<endl;
+              /**********************************************************************************/
+              /****************类别多可以根据自己标注情况，更改此处，若类别少，默认如下*******************/
+              /**********************************************************************************/
+                    if(maxflag==0)
+                    data[i]=0;
+                    else
+                        data[i]=255-maxflag;
+                    /**********************************************************************************/
+                    /**********************************************************************************/
+
+          }
     }
-  }
+
  return src;
 }
 
 int main(int argc, char *argv[])
 {
+
                 static const string fcnType = "fcn32s";
                 String fcnmodelTxt = fcnType + "-heavy-pascal.prototxt";
                 String fcnmodelBin = fcnType + "-heavy-pascal.caffemodel";
@@ -119,11 +147,12 @@ int main(int argc, char *argv[])
                  clock_t doublestart,doubleend;
                  doublestart = clock();
                 Mat seg=fcndetector.Predict(frame);
-  		doubleend = clock();
-  	        double dur = (double)(doubleend - doublestart);
+              doubleend = clock();
+            double dur = (double)(doubleend - doublestart);
                cout<<"                     fcn use time:"<<dur/CLOCKS_PER_SEC<<endl;
                imwrite("fcn result.jpg",seg);
-
-
     return 0;
 }
+
+
+
